@@ -1,5 +1,6 @@
 package study.querydsl.entity;
 
+import com.querydsl.core.QueryResults;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -77,7 +78,7 @@ class MemberTest {
         assertThat(findMember.getUsername()).isEqualTo("member1");
     }
 
-    /**
+    /** 검색
      * member.username.eq("member1") // username = 'member1'
      * member.username.ne("member1") //username != 'member1'
      * member.username.eq("member1").not() // username != 'member1'
@@ -93,4 +94,81 @@ class MemberTest {
      * member.username.contains("member") // like ‘%member%’ 검색
      * member.username.startsWith("member") //like ‘member%’ 검색
      */
+
+    /**결과 조회
+     * //List
+     * List<Member> fetch = queryFactory
+     *  .selectFrom(member)
+     *  .fetch();
+     * //단 건
+     * Member findMember1 = queryFactory
+     *  .selectFrom(member)
+     *  .fetchOne();
+     * //처음 한 건 조회
+     * Member findMember2 = queryFactory
+     *  .selectFrom(member)
+     *  .fetchFirst();
+     * //페이징에서 사용
+     * QueryResults<Member> results = queryFactory
+     *  .selectFrom(member)
+     *  .fetchResults(); xx 미지원으로 바뀜
+     * //count 쿼리로 변경
+     * long count = queryFactory
+     *  .selectFrom(member)
+     *  .fetchCount();
+     */
+
+    @Test
+    public void resultFetch(){
+        List<Member> fetch = queryFactory
+                .selectFrom(member)
+                .fetch();
+
+        Member fetchOne = queryFactory
+                .selectFrom(member)
+                .fetchOne();
+
+        Member fetchFirst = queryFactory
+                .selectFrom(member)
+                .fetchFirst();
+
+    }
+
+    @Test
+    public void count() {
+        Long totalCount = queryFactory
+                //.select(Wildcard.count) //select count(*)
+                .select(member.count()) //select count(member.id)
+                .from(member)
+                .fetchOne();
+        System.out.println("totalCount = " + totalCount);
+    }
+
+    /**
+     * 회원 정렬 순서
+     * 1. 회원 나이 내림차순(desc)
+     * 2. 회원 이름 올림차순(asc)
+     * 단 2에서 회원 이름이 없으면 마지막에 출력(nulls last)
+     */
+    @Test
+    public void sort() {
+        em.persist(new Member(null, 100));
+        em.persist(new Member("member5", 100));
+        em.persist(new Member("member6", 100));
+        List<Member> result = queryFactory
+                .selectFrom(member)
+                .where(member.age.eq(100))
+                .orderBy(member.age.desc(), member.username.asc().nullsLast())
+                .fetch();
+        Member member5 = result.get(0);
+        Member member6 = result.get(1);
+        Member memberNull = result.get(2);
+        assertThat(member5.getUsername()).isEqualTo("member5");
+        assertThat(member6.getUsername()).isEqualTo("member6");
+        assertThat(memberNull.getUsername()).isNull();
+    }
+
+
+
+
 }

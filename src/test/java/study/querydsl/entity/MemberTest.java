@@ -209,7 +209,7 @@ class MemberTest {
      */
     @Test
     public void aggregation() throws Exception {
-        List<Tuple> result = queryFactory
+        List<Tuple> result = queryFactory //조회 타입이 여러개이므로 Tuple 사용
                 .select(member.count(),
                         member.age.sum(),
                         member.age.avg(),

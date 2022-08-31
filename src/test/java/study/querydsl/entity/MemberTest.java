@@ -2,6 +2,7 @@ package study.querydsl.entity;
 
 import com.querydsl.core.QueryResults;
 import com.querydsl.core.Tuple;
+import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -11,6 +12,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.persistence.EntityManager;
+import javax.persistence.EntityManagerFactory;
+import javax.persistence.PersistenceUnit;
 
 import java.util.List;
 import static org.assertj.core.api.Assertions.*;
@@ -319,5 +322,55 @@ class MemberTest {
             System.out.println("t=" + tuple);
         }
     }
+
+    //패치 조인 미적용
+    @PersistenceUnit
+    EntityManagerFactory emf;
+    @Test
+    public void fetchJoinNo() throws Exception {
+        em.flush();
+        em.clear();
+        Member findMember = queryFactory
+                .selectFrom(member)
+                .where(member.username.eq("member1"))
+                .fetchOne();
+        boolean loaded =
+                emf.getPersistenceUnitUtil().isLoaded(findMember.getTeam());
+        assertThat(loaded).as("페치 조인 미적용").isFalse();
+    }
+
+    //패치 조인 적용, 즉시 로딩으로 Memeber, Team 쿼리 조인으로 한 번에 조회
+    @Test
+    public void fetchJoinUse() throws Exception {
+        em.flush();
+        em.clear();
+        Member findMember = queryFactory
+                .selectFrom(member)
+                .join(member.team, team).fetchJoin()
+                .where(member.username.eq("member1"))
+                .fetchOne();
+        boolean loaded =
+                emf.getPersistenceUnitUtil().isLoaded(findMember.getTeam());
+        assertThat(loaded).as("페치 조인 적용").isTrue();
+    }
+
+    /**
+     * 나이가 가장 많은 회원 조회
+     */
+    @Test
+    public void subQuery() throws Exception {
+        QMember memberSub = new QMember("memberSub");
+        List<Member> result = queryFactory
+                .selectFrom(member)
+                .where(member.age.eq(
+                        JPAExpressions
+                                .select(memberSub.age.max())
+                                .from(memberSub)
+                ))
+                .fetch();
+        assertThat(result).extracting("age")
+                .containsExactly(40);
+    }
+
 
 }

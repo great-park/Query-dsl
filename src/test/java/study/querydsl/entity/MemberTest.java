@@ -2,6 +2,8 @@ package study.querydsl.entity;
 
 import com.querydsl.core.QueryResults;
 import com.querydsl.core.Tuple;
+import com.querydsl.core.types.ExpressionUtils;
+import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.CaseBuilder;
 import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.JPAExpressions;
@@ -12,6 +14,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
+import study.querydsl.dto.MemberDto;
+import study.querydsl.dto.QMemberDto;
+import study.querydsl.dto.UserDto;
 
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
@@ -491,6 +496,84 @@ class MemberTest {
             System.out.println("username = " + username + " age = " + age + " rank = "
                     + rank);
         }
+    }
+
+    /**
+     * 프로젝션 : select 대상 지정
+     *
+     * 프로젝션 대상이 둘 이상이면 튜플이나 DTO로 조회
+     */
+
+    //Dto로 조회 JPQL
+    @Test
+    public void findDtoByJPQL(){
+        em.createQuery("select new study.querydsl.dto.MemberDto(m.username, m.age) from Member m", MemberDto.class)
+                .getResultList();
+    }
+
+    //Querydsl - 3가지 방식 지원
+    /**
+     * 프로퍼티 접근
+     * 필드 직접 접근
+     * 생성자 사용
+     * /생성자 + @QueryProjection
+     */
+
+    @Test
+    public void findDtoBySetter(){
+        List<MemberDto> dtos = queryFactory //setter를 통해 생성
+                .select(Projections.bean(MemberDto.class, //타입 지정 이후 가져올 값
+                        member.username,
+                        member.age))
+                .from(member)
+                .fetch();
+    }
+
+    @Test
+    public void findDtoByField(){
+        List<MemberDto> result = queryFactory //getter, setter 없이 필드에 바로
+                .select(Projections.fields(MemberDto.class, //타입 지정 이후 가져올 값
+                        member.username,
+                        member.age))
+                .from(member)
+                .fetch();
+    }
+
+    @Test
+    public void findDtoByConstructor(){
+        List<MemberDto> result = queryFactory //생성자 방식, 별칭을 맞춰야 됨
+                .select(Projections.constructor(MemberDto.class, //타입 지정 이후 가져올 값
+                        member.username,
+                        member.age))
+                .from(member)
+                .fetch();
+    }
+
+    @Test
+    public void findDtoByUserDto(){
+        QMember memberSub = new QMember("memberSub");
+        List<UserDto> fetch = queryFactory
+                .select(Projections.fields(UserDto.class,
+                                member.username.as("name"),
+                                ExpressionUtils.as(
+                                        JPAExpressions
+                                                .select(memberSub.age.max())
+                                                .from(memberSub), "age")
+                        )
+                ).from(member)
+                .fetch();
+    }
+
+
+    //생성자 + @QueryProjection
+    //안정적이고 편리해서 실무에서 가장 많이 씀.
+    //Dto가 querydsl에 대한 의존성이 생기는 단점이 존재
+    @Test
+    public void finDtoByQueryProjection(){
+        List<MemberDto> result = queryFactory
+                .select(new QMemberDto(member.username, member.age))
+                .from(member)
+                .fetch();
     }
 
 

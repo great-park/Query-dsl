@@ -630,6 +630,31 @@ class MemberTest {
         return ageCond != null ? member.age.eq(ageCond) : null;
     }
 
+    /**
+     * 수정, 삭제 벌크 연산
+     *
+     * 벌크연산은 영속성 컨텍스트를 무시하고 바로 DB에 연산하므로
+     * 불일치가 발생
+     * DB에서 조회할 때 영속성 컨테스트와 비교하는데, 불일치시 DB에서 조회한 결과를 버림
+     * 영속성 컨텍스트가 우선권권     */
+    @Test
+    public void bulkUpdate(){
+        long count = queryFactory
+                .update(member)
+                .set(member.username, "비회원")
+                .where(member.age.lt(28))
+                .execute();
+    }
+
+    @Test
+    public void bulkDelete(){
+        long count = queryFactory
+                .delete(member)
+                .where(member.age.gt(18))
+                .execute();
+    }
+
+
 
 
 }

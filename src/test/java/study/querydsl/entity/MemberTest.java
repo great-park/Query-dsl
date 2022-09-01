@@ -16,6 +16,8 @@ import javax.persistence.EntityManagerFactory;
 import javax.persistence.PersistenceUnit;
 
 import java.util.List;
+
+import static com.querydsl.jpa.JPAExpressions.*;
 import static org.assertj.core.api.Assertions.*;
 import static study.querydsl.entity.QMember.member;
 import static study.querydsl.entity.QTeam.team;
@@ -355,6 +357,13 @@ class MemberTest {
         assertThat(loaded).as("페치 조인 적용").isTrue();
     }
 
+
+    /**
+     * from 절의 서브쿼리 한계
+     * JPA JPQL 서브쿼리의 한계점으로 from 절의 서브쿼리(인라인 뷰)는 지원하지 않는다. 당연히 Querydsl
+     * 도 지원하지 않는다. 하이버네이트 구현체를 사용하면 select 절의 서브쿼리는 지원한다. Querydsl도
+     * 하이버네이트 구현체를 사용하면 select 절의 서브쿼리를 지원한다.
+     */
     /**
      * 나이가 가장 많은 회원 조회
      */
@@ -364,14 +373,71 @@ class MemberTest {
         List<Member> result = queryFactory
                 .selectFrom(member)
                 .where(member.age.eq(
-                        JPAExpressions
-                                .select(memberSub.age.max())
+                        select(memberSub.age.max())
                                 .from(memberSub)
                 ))
                 .fetch();
         assertThat(result).extracting("age")
                 .containsExactly(40);
     }
+
+    /**
+     * 나이가 평균 나이 이상인 회원
+     * goe - 크거나 같다
+     */
+    @Test
+    public void subQueryGoe() throws Exception {
+        QMember memberSub = new QMember("memberSub");
+        List<Member> result = queryFactory
+                .selectFrom(member)
+                .where(member.age.goe(
+                        select(memberSub.age.avg())
+                                .from(memberSub)
+                ))
+                .fetch();
+        assertThat(result).extracting("age")
+                .containsExactly(30,40);
+    }
+
+
+    /**
+     * 서브쿼리 여러 건 처리, in 사용
+     */
+
+    @Test
+    public  void subQueryIn() throws Exception{
+        QMember memberSub = new QMember("memberSub");
+
+        List<Member> result = queryFactory
+                .selectFrom(member)
+                .where(member.age.in(
+                        select(memberSub.age)
+                                .from(memberSub)
+                                .where(memberSub.age.gt(10))
+                ))
+                .fetch();
+        assertThat(result).extracting("age")
+                .containsExactly(20,30,40);
+    }
+
+    @Test
+    public void selectSunQuery(){
+        QMember memberSub = new QMember("memberSub");
+
+        List<Tuple> result = queryFactory
+                .select(member.username,
+                        select(memberSub.age.avg())
+                                .from(memberSub))
+                .from(member)
+                .fetch();
+
+        for (Tuple tuple : result) {
+            System.out.println("username = " + tuple.get(member.username));
+            System.out.println("age = " +
+                    tuple.get(select(memberSub.age.avg())
+                            .from(memberSub)));
+    }
+
 
 
 }

@@ -323,7 +323,7 @@ class MemberTest {
         }
     }
 
-    //패치 조인 미적용
+    //패치 조인 미적용 - team이 LAZY 로딩
     @PersistenceUnit
     EntityManagerFactory emf;
     @Test
@@ -334,6 +334,7 @@ class MemberTest {
                 .selectFrom(member)
                 .where(member.username.eq("member1"))
                 .fetchOne();
+        //loading 여부를 확인 - false 기대
         boolean loaded =
                 emf.getPersistenceUnitUtil().isLoaded(findMember.getTeam());
         assertThat(loaded).as("페치 조인 미적용").isFalse();
@@ -346,7 +347,7 @@ class MemberTest {
         em.clear();
         Member findMember = queryFactory
                 .selectFrom(member)
-                .join(member.team, team).fetchJoin()
+                .join(member.team, team).fetchJoin() //패치 조인
                 .where(member.username.eq("member1"))
                 .fetchOne();
         boolean loaded =
